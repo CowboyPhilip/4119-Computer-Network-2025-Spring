@@ -4,6 +4,9 @@ import time
 from typing import List, Dict, Any, Optional
 import uuid
 
+DEFAULT_DIFFICULTY = 4
+MAX_DIFFICULTY = 8 # Results in slower mining
+MIN_DIFFICULTY = 1 # Results in faster mining
 
 class Transaction:
     """Represents a vote transaction in the blockchain."""
@@ -93,7 +96,8 @@ class Block:
     """Represents a block in the blockchain."""
     
     def __init__(self, index: int, transactions: List[Transaction], previous_hash: str,
-                 timestamp: float = None, nonce: int = 0, hash: str = None):
+                 timestamp: float = None, nonce: int = 0, hash: str = None,
+                 miner_id: int = None, difficulty: int = None):
         """
         Initialize a new block.
         
@@ -112,6 +116,8 @@ class Block:
         self.nonce = nonce
         self.merkle_root = self.calculate_merkle_root()
         self.hash = hash if hash else self.compute_hash()
+        self.miner_id = miner_id
+        self.difficulty = difficulty
     
     def calculate_merkle_root(self) -> str:
         """Calculate the Merkle root of the transactions."""
@@ -153,14 +159,14 @@ class Block:
         block_string = json.dumps(self.to_dict(), sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
     
-    def mine_block(self, difficulty: int) -> None:
+    def mine_block(self) -> None:
         """
         Perform proof-of-work to find a valid hash.
         
         Args:
             difficulty: Number of leading zeros required in the hash
         """
-        target = '0' * difficulty
+        target = '0' * self.difficulty
         
         while not self.hash.startswith(target):
             self.nonce += 1
@@ -184,14 +190,11 @@ class Block:
 class Blockchain:
     """Implements a blockchain for the voting system."""
     
-    def __init__(self, difficulty: int = 4):
+    def __init__(self):
         """
         Initialize a new blockchain.
-        
-        Args:
-            difficulty: Mining difficulty (number of leading zeros required)
         """
-        self.difficulty = difficulty
+        self.difficulty = DEFAULT_DIFFICULTY
         self.chain = []
         self.pending_transactions = []
         
@@ -256,7 +259,7 @@ class Blockchain:
         
         return False
     
-    def mine_pending_transactions(self, miner_id: str) -> Optional[Block]:
+    def mine_pending_transactions(self, miner_id: str, difficulty: int) -> Optional[Block]:
         """
         Mine a new block with all pending transactions.
         
@@ -273,11 +276,14 @@ class Blockchain:
         new_block = Block(
             index=len(self.chain),
             transactions=self.pending_transactions,
-            previous_hash=self.last_block.hash
+            previous_hash=self.last_block.hash,
+            miner_id=miner_id,
+            difficulty=difficulty
         )
         
         # Mine the block
-        new_block.mine_block(self.difficulty)
+        self.difficulty = difficulty
+        new_block.mine_block()
         
         # Add the block to the chain
         self.chain.append(new_block)
@@ -288,12 +294,16 @@ class Blockchain:
         return new_block
     
     def is_chain_valid(self) -> bool:
+        # CURRENTLY USED BY tracker.py
         """
         Validate the entire blockchain.
         
         Returns:
             True if the chain is valid, False otherwise
         """
+        miner_checks = {} # Dict[int, bool]
+        chain_check = True
+
         # Check each block in the chain
         for i in range(1, len(self.chain)):
             current_block = self.chain[i]
@@ -302,21 +312,25 @@ class Blockchain:
             # Check if the hash is correct
             if current_block.hash != current_block.compute_hash():
                 print(f"Block {i} has an invalid hash")
-                return False
+                miner_checks[current_block.miner_id] = False
+                chain_check = False
             
             # Check if the previous hash link is correct
             if current_block.previous_hash != previous_block.hash:
                 print(f"Block {i} has an invalid previous hash link")
-                return False
+                miner_checks[current_block.miner_id] = False
+                chain_check = False
             
             # Check if the proof of work is valid
-            if not current_block.hash.startswith('0' * self.difficulty):
+            if not current_block.hash.startswith('0' * current_block.difficulty):
                 print(f"Block {i} does not have a valid proof-of-work")
-                return False
+                miner_checks[current_block.miner_id] = False
+                chain_check = False
         
-        return True
+        return chain_check, miner_checks
     
     def is_valid_new_block(self, new_block: Block, previous_block: Block) -> bool:
+        # NOT USED YET
         """
         Check if a new block is valid.
         
@@ -330,13 +344,12 @@ class Blockchain:
         # Check if the hash is correct
         if new_block.hash != new_block.compute_hash():
             return False
-        
         # Check if the previous hash link is correct
         if new_block.previous_hash != previous_block.hash:
             return False
         
         # Check if the proof of work is valid
-        if not new_block.hash.startswith('0' * self.difficulty):
+        if not new_block.hash.startswith('0' * new_block.difficulty):
             return False
         
         # Check if the index is correct
@@ -345,7 +358,8 @@ class Blockchain:
         
         return True
     
-    def resolve_conflicts(self, chains: List[List[Dict]]) -> bool:
+    def resolve_conflicts(self, chains: List[List[Dict]]) -> tuple[bool, List[Dict[int, bool]]]:
+        # NOT USED YET
         """
         Resolve conflicts between chains by selecting the longest valid chain.
         
@@ -357,6 +371,7 @@ class Blockchain:
         """
         max_length = len(self.chain)
         new_chain = None
+        miner_checks_list = [] # List of Dict[int, bool]
         
         # Find the longest valid chain
         for chain_data in chains:
@@ -364,16 +379,19 @@ class Blockchain:
             chain = [Block.from_dict(block_dict) for block_dict in chain_data]
             
             # Check length and validity
-            if len(chain) > max_length and self.validate_chain(chain):
+            chain_check, miner_checks = self.validate_chain(chain)
+            if len(chain) > max_length and chain_check:
                 max_length = len(chain)
                 new_chain = chain
+            # Regardless, record miner_id and check result for each miner
+            miner_checks_list.append(miner_checks)
         
         # Replace our chain if a longer valid chain was found
         if new_chain:
             self.chain = new_chain
-            return True
+            return True, miner_checks_list
         
-        return False
+        return False, miner_checks_list
     
     def validate_chain(self, chain: List[Block]) -> bool:
         """
@@ -385,9 +403,15 @@ class Blockchain:
         Returns:
             True if the chain is valid, False otherwise
         """
+        miner_checks = {}
+        chain_check = True
+
         # Check the genesis block
         if len(chain) == 0 or chain[0].hash != self.chain[0].hash:
-            return False
+            miner_checks[chain[0].miner_id] = False
+            chain_check = False
+        else:
+            miner_checks[chain[0].miner_id] = True
         
         # Check each block in the chain
         for i in range(1, len(chain)):
@@ -395,10 +419,13 @@ class Blockchain:
             previous_block = chain[i-1]
             
             # Validate the block
-            if not self.is_valid_new_block(current_block, previous_block):
-                return False
+            if self.is_valid_new_block(current_block, previous_block):
+                miner_checks[current_block.miner_id] = False
+                chain_check = False
+            else:
+                miner_checks[current_block.miner_id] = True
         
-        return True
+        return chain_check, miner_checks
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert blockchain to dictionary for serialization."""
@@ -425,6 +452,25 @@ class Blockchain:
             blockchain.pending_transactions.append(Transaction.from_dict(tx_dict))
         
         return blockchain
+    
+    @staticmethod
+    def get_difficulty(stake_value):
+        """
+        Get a difficulty value from a given stake value
+        
+        Args:
+            stake_value: int
+        
+        Returns:
+            difficulty: int
+        """
+        difficulty = DEFAULT_DIFFICULTY - stake_value
+        if difficulty > MAX_DIFFICULTY:
+            return MAX_DIFFICULTY
+        elif difficulty < MIN_DIFFICULTY:
+            return MIN_DIFFICULTY
+        
+        return difficulty # MIN DIFFICULTY < difficulty < MAX_DIFFICULTY
     
     def get_vote_results(self) -> Dict[str, int]:
         """
