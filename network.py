@@ -6,6 +6,7 @@ import threading
 import os
 import logging
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Message types
 MSG_NEW_BLOCK = "NEW_BLOCK"
 MSG_PEER_LIST = "PEER_LIST"
+MSG_GET_MINER = "GET_MINER"
 MSG_CHAIN_REQUEST = "CHAIN_REQUEST"
 MSG_CHAIN_RESPONSE = "CHAIN_RESPONSE"
 MSG_NEW_TRANSACTION = "NEW_TRANSACTION"
