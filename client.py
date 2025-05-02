@@ -8,7 +8,7 @@ import hashlib
 import random
 from typing import Dict, Any, List, Tuple, Optional, Callable
 from network import (
-    Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, 
+    Network, MSG_REGISTER, MSG_PEER_LIST, MSG_GET_MINER, MSG_HEARTBEAT, 
     MSG_CHAIN_REQUEST, MSG_CHAIN_RESPONSE, MSG_NEW_BLOCK, MSG_NEW_TRANSACTION
 )
 from block123 import Blockchain, Block, Transaction
@@ -33,7 +33,6 @@ class Client(Network):
                  tracker_host: str, 
                  tracker_port: int,
                  topology_file: str = "topology.dat",
-                 mining_difficulty: int = 4,
                  auto_mine: bool = False):
         """
         Initialize the client.
@@ -44,13 +43,13 @@ class Client(Network):
             tracker_host: Tracker's host
             tracker_port: Tracker's port
             topology_file: File containing network topology
-            mining_difficulty: Difficulty for mining (proof-of-work)
             auto_mine: Whether to automatically mine blocks
         """
         super().__init__(host, port, topology_file)
+        self.id = (host, port)
         self.tracker_host = tracker_host
         self.tracker_port = tracker_port
-        self.blockchain = Blockchain(mining_difficulty)
+        self.blockchain = Blockchain()
         self.auto_mine = auto_mine
         self.mining = False
         self.mining_thread = None
@@ -156,6 +155,8 @@ class Client(Network):
                     self._handle_new_block(message)
                 elif msg_type == MSG_NEW_TRANSACTION:
                     self._handle_new_transaction(message)
+                elif msg_type == MSG_GET_MINER:
+                    self._handle_get_miner(message)
                 else:
                     logger.warning(f"Received unknown message type: {msg_type}")
             
@@ -358,7 +359,9 @@ class Client(Network):
         """Mine a new block with pending transactions."""
         try:
             # Mine a new block
-            new_block = self.blockchain.mine_pending_transactions(self.id)
+            self._request_miner()
+            miner_id, difficulty = self._handle_get_miner()
+            new_block = self.blockchain.mine_pending_transactions(miner_id, difficulty)
             
             if new_block:
                 logger.info(f"Mined new block: {new_block.index}")
@@ -494,12 +497,30 @@ class Client(Network):
             return True
         
         return False
+    
+    def _handle_get_miner(self, message):
+        if 'data' in message:
+            miner_id = int(message['data']['miner id'])
+            difficulty = int(message['data']['difficulty'])
 
+        logger.info(f"Received mining id and difficulty from {self.tracker_host}:{self.tracker_port}")
+        return miner_id, difficulty
+
+    def _request_miner(self):
+        request = {
+            'type': MSG_GET_MINER,
+            'data': None,
+            'timestamp': time.time(),
+            'sender': self.id
+        }
+
+        self.send_message((self.tracker_host, self.tracker_port), request)
+        logger.info(f"Requested mining difficulty from {self.tracker_host}:{self.tracker_port}")
 
 if __name__ == "__main__":
     # Parse command line arguments
     if len(sys.argv) < 5:
-        print(f"Usage: {sys.argv[0]} <host> <port> <tracker_host> <tracker_port> [topology_file] [mining_difficulty] [auto_mine]")
+        print(f"Usage: {sys.argv[0]} <host> <port> <tracker_host> <tracker_port> [topology_file] [auto_mine]")
         sys.exit(1)
     
     host = sys.argv[1]
@@ -507,11 +528,10 @@ if __name__ == "__main__":
     tracker_host = sys.argv[3]
     tracker_port = int(sys.argv[4])
     topology_file = sys.argv[5] if len(sys.argv) > 5 else "topology.dat"
-    mining_difficulty = int(sys.argv[6]) if len(sys.argv) > 6 else 4
-    auto_mine = sys.argv[7].lower() == "true" if len(sys.argv) > 7 else False
+    auto_mine = sys.argv[7].lower() == "true" if len(sys.argv) > 6 else False
     
     # Create and start client
-    client = Client(host, port, tracker_host, tracker_port, topology_file, mining_difficulty, auto_mine)
+    client = Client(host, port, tracker_host, tracker_port, topology_file, auto_mine)
     
     try:
         client.start()

@@ -5,8 +5,10 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional
 import json
 import sys
-from network import Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, MSG_CHAIN_RESPONSE
-from block123 import Blockchain, Block
+from network import Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, MSG_CHAIN_RESPONSE, MSG_GET_MINER
+from block123 import Blockchain
+
+DEFAULT_STAKEVALUE = 0
 
 # Configure logging
 logging.basicConfig(
@@ -34,7 +36,9 @@ class Tracker(Network):
             topology_file: File containing network topology
         """
         super().__init__(host, port, topology_file)
-        self.active_peers = {}  # {peer_id: (host, port, last_heartbeat)}
+        self.assigned_ids = 0
+        self.active_peers = {}  # {peer_id: (host, port, last_heartbeat, stake_value)}
+        self.miners = {}
         self.blockchain = Blockchain()  # Reference blockchain
         
         # Start heartbeat check thread
@@ -74,6 +78,8 @@ class Tracker(Network):
                     self._handle_register(message)
                 elif msg_type == MSG_HEARTBEAT:
                     self._handle_heartbeat(message)
+                elif msg_type == MSG_GET_MINER:
+                    self._handle_get_miner(message)
                 else:
                     logger.warning(f"Received unknown message type: {msg_type}")
             
@@ -96,10 +102,17 @@ class Tracker(Network):
             if 'host' in peer_data and 'port' in peer_data:
                 host = peer_data['host']
                 port = int(peer_data['port'])
-                
+
+                if peer_id not in self.peers:
+                    self.assigned_ids += 1
+                    miner_id = self.assigned_ids
+                    self.miners[miner_id] = DEFAULT_STAKEVALUE
+                else:
+                    miner_id = self.peers[peer_id][2]
+
                 # Add peer to active peers
                 self.active_peers[peer_id] = (host, port, time.time())
-                self.peers[peer_id] = (host, port)
+                self.peers[peer_id] = (host, port, miner_id)
                 
                 logger.info(f"Registered peer {peer_id} at {host}:{port}")
                 
@@ -131,9 +144,20 @@ class Tracker(Network):
                     temp_chain = Blockchain.from_dict(blockchain_data)
                     
                     # If the peer's chain is longer and valid, update our chain
-                    if len(temp_chain.chain) > len(self.blockchain.chain) and temp_chain.is_chain_valid():
+                    temp_chain_check, miner_results = temp_chain.is_chain_valid()
+                    if len(temp_chain.chain) > len(self.blockchain.chain) and temp_chain_check:
                         self.blockchain = temp_chain
                         logger.info(f"Updated reference blockchain from peer {peer_id}")
+                    
+                    for miner_id, result in miner_results:
+                        # 2nd element = stake_value
+                        stake_value = self.miners[miner_id]
+                        if result:
+                            # 3rd element = stake_value
+                            stake_value += 1
+                        else:
+                            stake_value -= 1
+                        self.miners[miner_id] = stake_value
     
     def _check_heartbeats(self) -> None:
         """Check for dead peers and remove them."""
@@ -201,6 +225,29 @@ class Tracker(Network):
             self.send_message((host, port), message)
             logger.info(f"Sent blockchain to peer {peer_id}")
 
+    def _handle_get_miner(self, message: Dict[str, any]):
+        if 'sender' in message:
+            peer_id = message['sender']
+
+            if peer_id in self.active_peers:
+                host, port, _ = self.active_peers[peer_id]
+                # miner_id is 3rd element in self.peers
+                miner_id = self.peers[peer_id][2]
+                stake_value = self.miners[miner_id]
+                difficulty = Blockchain.get_difficulty(stake_value)
+
+                message = {
+                    'type': MSG_GET_MINER,
+                    'data': {
+                        'miner id' : miner_id,
+                        'difficulty' : difficulty
+                    },
+                    'timestamp': time.time(),
+                    'sender': self.id
+                }
+
+                self.send_message((host, port), message)
+                logger.info(f"Sent mining id and difficulty to {peer_id}")
 
 if __name__ == "__main__":
     # Parse command line arguments
