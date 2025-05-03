@@ -73,7 +73,16 @@ def main():
         
         # Give each peer some time to start to avoid overwhelming the tracker
         time.sleep(1)
-    
+
+        if peer_process.poll() is not None:
+            _, err = peer_process.communicate()
+            print(f"❌ Peer {i+1} failed to start. Error:")
+            print(err.decode())
+        else:
+            print(f"✅ Peer {i+1} started successfully.")
+            processes.append(peer_process)
+
+            
     print(f"Network started with 1 tracker and {args.peers} peers.")
     print("Press Ctrl+C to shut down the network.")
     
