@@ -145,9 +145,11 @@ class Tracker(Network):
                     
                     # If the peer's chain is longer and valid, update our chain
                     temp_chain_check, miner_results = temp_chain.is_chain_valid()
-                    if temp_chain.chain_score > self.blockchain.chain_score and temp_chain_check:
-                        self.blockchain = temp_chain
-                        logger.info(f"Updated reference blockchain from peer {peer_id}")
+                    if temp_chain_check and len(temp_chain.chain) >= len(self.blockchain.chain):
+                        if (len(temp_chain.chain) > len(self.blockchain.chain) or 
+                                        temp_chain.chain_score > self.blockchain.chain_score):
+                                self.blockchain = temp_chain
+                                logger.info(f"Updated reference blockchain from peer {peer_id}")
                     
                     for miner_id, result in miner_results:
                         # 2nd element = stake_value
