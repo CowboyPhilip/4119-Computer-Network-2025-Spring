@@ -1,11 +1,11 @@
 function display_menu() {
     
     console.log("Display menu")
-    var menu_template = $("<div class = row></div>");
-    var vote_menu = $("<button id=vote_menu>Vote</button>");
-    var blockchain_menu = $("<button id=blockchain_menu>Blockchain</button>");
-    var results_menu = $("<button id=results_menu>Results</button>");
-    var networks_menu = $("<button id=networks_menu>Networks</button>");
+    // var menu_template = $("<div class = row></div>");
+    var vote_menu = $('<button class="menu_button" id="vote_menu">Vote</button>');
+    var blockchain_menu = $('<button class="menu_button" id="blockchain_menu">Blockchain</button>');
+    var results_menu = $('<button class="menu_button" id="results_menu">Results</button>');
+    var networks_menu = $('<button class="menu_button" id="networks_menu">Networks</button>');
     
     $(vote_menu).click(function() {
         switch_page("/vote");
@@ -20,12 +20,15 @@ function display_menu() {
         switch_page("/network");
     });
 
-    menu_template.append(vote_menu);
-    menu_template.append(blockchain_menu);
-    menu_template.append(results_menu);
-    menu_template.append(networks_menu);
-    $(".menu_headers").append(menu_template);
+    $(".menu_header").append(vote_menu);
+    $(".menu_header").append(blockchain_menu);
+    $(".menu_header").append(results_menu);
+    $(".menu_header").append(networks_menu);
 
+}
+
+function display_vote() {
+    
 }
 
 function switch_page(page) {
