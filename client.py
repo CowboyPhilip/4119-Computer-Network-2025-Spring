@@ -54,6 +54,9 @@ class Client(Network):
         self.mining = False
         self.mining_thread = None
         self.heartbeat_thread = None
+        # Values received from the tracker
+        self.miner_id = None
+        self.stake_value = None
         
         # Generate key pair for this client
         self.private_key, self.public_key = generate_key_pair()
@@ -225,7 +228,8 @@ class Client(Network):
             temp_chain = Blockchain.from_dict(blockchain_data)
             
             # If the received chain is longer and valid, update our chain
-            if len(temp_chain.chain) > len(self.blockchain.chain) and temp_chain.is_chain_valid():
+            temp_chain_check, _ = temp_chain.is_chain_valid()
+            if temp_chain.chain_score > self.blockchain.chain_score and temp_chain_check:
                 self.blockchain = temp_chain
                 logger.info(f"Updated blockchain from {message.get('sender', 'unknown')}")
                 
@@ -359,9 +363,14 @@ class Client(Network):
         """Mine a new block with pending transactions."""
         try:
             # Mine a new block
+            self.miner_id = None
+            self.stake_value = None
             self._request_miner()
-            miner_id, difficulty = self._handle_get_miner()
-            new_block = self.blockchain.mine_pending_transactions(miner_id, difficulty)
+            # Listen for updated self.miner_id and self.stake_value
+            while not self.miner_id or not self.stake_value:
+                pass # Can add timeout here possibly
+            new_block = self.blockchain.mine_pending_transactions(
+                self.miner_id, self.stake_value)
             
             if new_block:
                 logger.info(f"Mined new block: {new_block.index}")
@@ -470,7 +479,6 @@ class Client(Network):
             'chain_length': len(self.blockchain.chain),
             'pending_transactions': len(self.blockchain.pending_transactions),
             'last_block_hash': self.blockchain.last_block.hash if self.blockchain.chain else None,
-            'difficulty': self.blockchain.difficulty,
             'mining': self.mining
         }
         
@@ -500,11 +508,10 @@ class Client(Network):
     
     def _handle_get_miner(self, message):
         if 'data' in message:
-            miner_id = int(message['data']['miner id'])
-            difficulty = int(message['data']['difficulty'])
+            self.miner_id = int(message['data']['miner_id'])
+            self.stake_value = int(message['data']['stake_value'])
 
-        logger.info(f"Received mining id and difficulty from {self.tracker_host}:{self.tracker_port}")
-        return miner_id, difficulty
+        logger.info(f"Received miner id and stake value from {self.tracker_host}:{self.tracker_port}")
 
     def _request_miner(self):
         request = {
@@ -515,7 +522,7 @@ class Client(Network):
         }
 
         self.send_message((self.tracker_host, self.tracker_port), request)
-        logger.info(f"Requested mining difficulty from {self.tracker_host}:{self.tracker_port}")
+        logger.info(f"Requested miner id and stake value from {self.tracker_host}:{self.tracker_port}")
 
 if __name__ == "__main__":
     # Parse command line arguments

@@ -97,7 +97,7 @@ class Block:
     
     def __init__(self, index: int, transactions: List[Transaction], previous_hash: str,
                  timestamp: float = None, nonce: int = 0, hash: str = None,
-                 miner_id: int = None, difficulty: int = None):
+                 miner_id: int = None, stake_value: int = None):
         """
         Initialize a new block.
         
@@ -117,7 +117,7 @@ class Block:
         self.merkle_root = self.calculate_merkle_root()
         self.hash = hash if hash else self.compute_hash()
         self.miner_id = miner_id
-        self.difficulty = difficulty
+        self.stake_value = stake_value
     
     def calculate_merkle_root(self) -> str:
         """Calculate the Merkle root of the transactions."""
@@ -151,7 +151,9 @@ class Block:
             'previous_hash': self.previous_hash,
             'timestamp': self.timestamp,
             'nonce': self.nonce,
-            'merkle_root': self.merkle_root
+            'merkle_root': self.merkle_root,
+            'miner_id' : self.miner_id,
+            'stake_value' : self.stake_value
         }
     
     def compute_hash(self) -> str:
@@ -162,11 +164,9 @@ class Block:
     def mine_block(self) -> None:
         """
         Perform proof-of-work to find a valid hash.
-        
-        Args:
-            difficulty: Number of leading zeros required in the hash
         """
-        target = '0' * self.difficulty
+        mining_difficulty = Block.get_mining_difficulty(self.stake_value)
+        target = '0' * mining_difficulty
         
         while not self.hash.startswith(target):
             self.nonce += 1
@@ -183,9 +183,29 @@ class Block:
             previous_hash=block_dict['previous_hash'],
             timestamp=block_dict.get('timestamp'),
             nonce=block_dict.get('nonce', 0),
-            hash=block_dict.get('hash')
+            hash=block_dict.get('hash'),
+            miner_id=block_dict.get('miner_id'),
+            stake_value=block_dict.get('stake_value')
         )
-
+    
+    @staticmethod
+    def get_mining_difficulty(stake_value):
+        """
+        Get a mining difficulty value from a given stake value
+        
+        Args:
+            stake_value: int
+        
+        Returns:
+            mining_difficulty: int
+        """
+        mining_difficulty = DEFAULT_DIFFICULTY - stake_value
+        if mining_difficulty > MAX_DIFFICULTY:
+            return MAX_DIFFICULTY
+        elif mining_difficulty < MIN_DIFFICULTY:
+            return MIN_DIFFICULTY
+        
+        return mining_difficulty # MIN DIFFICULTY < mining_difficulty < MAX_DIFFICULTY
 
 class Blockchain:
     """Implements a blockchain for the voting system."""
@@ -194,8 +214,8 @@ class Blockchain:
         """
         Initialize a new blockchain.
         """
-        self.difficulty = DEFAULT_DIFFICULTY
         self.chain = []
+        self.chain_score = 0
         self.pending_transactions = []
         
         # Create the genesis block
@@ -259,7 +279,7 @@ class Blockchain:
         
         return False
     
-    def mine_pending_transactions(self, miner_id: str, difficulty: int) -> Optional[Block]:
+    def mine_pending_transactions(self, miner_id: str, stake_value: int) -> Optional[Block]:
         """
         Mine a new block with all pending transactions.
         
@@ -278,11 +298,10 @@ class Blockchain:
             transactions=self.pending_transactions,
             previous_hash=self.last_block.hash,
             miner_id=miner_id,
-            difficulty=difficulty
+            stake_value=stake_value
         )
         
         # Mine the block
-        self.difficulty = difficulty
         new_block.mine_block()
         
         # Add the block to the chain
@@ -302,12 +321,14 @@ class Blockchain:
             True if the chain is valid, False otherwise
         """
         miner_checks = {} # Dict[int, bool]
+        self.chain_score = 0
         chain_check = True
 
         # Check each block in the chain
         for i in range(1, len(self.chain)):
             current_block = self.chain[i]
             previous_block = self.chain[i-1]
+            self.chain_score += current_block.stake_value
             
             # Check if the hash is correct
             if current_block.hash != current_block.compute_hash():
@@ -316,13 +337,13 @@ class Blockchain:
                 chain_check = False
             
             # Check if the previous hash link is correct
-            if current_block.previous_hash != previous_block.hash:
+            elif current_block.previous_hash != previous_block.hash:
                 print(f"Block {i} has an invalid previous hash link")
                 miner_checks[current_block.miner_id] = False
                 chain_check = False
             
             # Check if the proof of work is valid
-            if not current_block.hash.startswith('0' * current_block.difficulty):
+            elif not current_block.hash.startswith('0' * current_block.mining_difficulty):
                 print(f"Block {i} does not have a valid proof-of-work")
                 miner_checks[current_block.miner_id] = False
                 chain_check = False
@@ -349,7 +370,7 @@ class Blockchain:
             return False
         
         # Check if the proof of work is valid
-        if not new_block.hash.startswith('0' * new_block.difficulty):
+        if not new_block.hash.startswith('0' * new_block.mining_difficulty):
             return False
         
         # Check if the index is correct
@@ -404,6 +425,7 @@ class Blockchain:
             True if the chain is valid, False otherwise
         """
         miner_checks = {}
+        self.chain_score = 0
         chain_check = True
 
         # Check the genesis block
@@ -412,18 +434,21 @@ class Blockchain:
             chain_check = False
         else:
             miner_checks[chain[0].miner_id] = True
+        # Regardless, add the blocks stake value to chain score
+        self.chain_score += chain[0].stake_value
         
         # Check each block in the chain
         for i in range(1, len(chain)):
             current_block = chain[i]
             previous_block = chain[i-1]
+            self.chain_score += current_block.stake_value
             
             # Validate the block
             if self.is_valid_new_block(current_block, previous_block):
+                miner_checks[current_block.miner_id] = True
+            else:
                 miner_checks[current_block.miner_id] = False
                 chain_check = False
-            else:
-                miner_checks[current_block.miner_id] = True
         
         return chain_check, miner_checks
     
@@ -431,14 +456,14 @@ class Blockchain:
         """Convert blockchain to dictionary for serialization."""
         return {
             'chain': [block.to_dict() for block in self.chain],
-            'pending_transactions': [tx.to_dict() for tx in self.pending_transactions],
-            'difficulty': self.difficulty
+            'chain_score' : self.chain_score,
+            'pending_transactions': [tx.to_dict() for tx in self.pending_transactions]
         }
     
     @staticmethod
     def from_dict(blockchain_dict: Dict[str, Any]) -> 'Blockchain':
         """Create a Blockchain object from a dictionary."""
-        blockchain = Blockchain(blockchain_dict.get('difficulty', 4))
+        blockchain = Blockchain()
         
         # Clear the genesis block
         blockchain.chain = []
@@ -452,25 +477,6 @@ class Blockchain:
             blockchain.pending_transactions.append(Transaction.from_dict(tx_dict))
         
         return blockchain
-    
-    @staticmethod
-    def get_difficulty(stake_value):
-        """
-        Get a difficulty value from a given stake value
-        
-        Args:
-            stake_value: int
-        
-        Returns:
-            difficulty: int
-        """
-        difficulty = DEFAULT_DIFFICULTY - stake_value
-        if difficulty > MAX_DIFFICULTY:
-            return MAX_DIFFICULTY
-        elif difficulty < MIN_DIFFICULTY:
-            return MIN_DIFFICULTY
-        
-        return difficulty # MIN DIFFICULTY < difficulty < MAX_DIFFICULTY
     
     def get_vote_results(self) -> Dict[str, int]:
         """

@@ -145,9 +145,11 @@ class Tracker(Network):
                     
                     # If the peer's chain is longer and valid, update our chain
                     temp_chain_check, miner_results = temp_chain.is_chain_valid()
-                    if len(temp_chain.chain) > len(self.blockchain.chain) and temp_chain_check:
-                        self.blockchain = temp_chain
-                        logger.info(f"Updated reference blockchain from peer {peer_id}")
+                    if temp_chain_check and len(temp_chain.chain) >= len(self.blockchain.chain):
+                        if (len(temp_chain.chain) > len(self.blockchain.chain) or 
+                                        temp_chain.chain_score > self.blockchain.chain_score):
+                                self.blockchain = temp_chain
+                                logger.info(f"Updated reference blockchain from peer {peer_id}")
                     
                     for miner_id, result in miner_results:
                         # 2nd element = stake_value
@@ -234,20 +236,19 @@ class Tracker(Network):
                 # miner_id is 3rd element in self.peers
                 miner_id = self.peers[peer_id][2]
                 stake_value = self.miners[miner_id]
-                difficulty = Blockchain.get_difficulty(stake_value)
 
                 message = {
                     'type': MSG_GET_MINER,
                     'data': {
-                        'miner id' : miner_id,
-                        'difficulty' : difficulty
+                        'miner_id' : miner_id,
+                        'stake_value' : stake_value
                     },
                     'timestamp': time.time(),
                     'sender': self.id
                 }
 
                 self.send_message((host, port), message)
-                logger.info(f"Sent mining id and difficulty to {peer_id}")
+                logger.info(f"Sent miner id and stake value to {peer_id}")
 
 if __name__ == "__main__":
     # Parse command line arguments
