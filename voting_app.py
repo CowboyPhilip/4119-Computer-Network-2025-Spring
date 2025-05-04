@@ -573,7 +573,7 @@ def main():
     auto_mine = sys.argv[7].lower() == "true" if len(sys.argv) > 7 else False
     
     # Create client
-    client = Client(host, port, tracker_host, tracker_port, topology_file, mining_difficulty, auto_mine)
+    client = Client(host, port, tracker_host, tracker_port, topology_file, auto_mine)
     
     # Create UI
     root = tk.Tk()
