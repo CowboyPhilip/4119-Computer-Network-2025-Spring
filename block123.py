@@ -114,9 +114,9 @@ class Block:
         self.previous_hash = previous_hash
         self.timestamp = timestamp if timestamp else time.time()
         self.nonce = nonce
-        self.merkle_root = self.calculate_merkle_root()
         self.miner_id = miner_id
         self.stake_value = stake_value
+        self.merkle_root = self.calculate_merkle_root()
         self.hash = hash if hash else self.compute_hash()
     
     def calculate_merkle_root(self) -> str:

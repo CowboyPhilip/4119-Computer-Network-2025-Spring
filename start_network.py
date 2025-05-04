@@ -23,7 +23,6 @@ def main():
     parser = argparse.ArgumentParser(description='Start a blockchain voting network.')
     
     parser.add_argument('--peers', type=int, default=3, help='Number of peers to start (default: 3)')
-    parser.add_argument('--difficulty', type=int, default=4, help='Mining difficulty (default: 4)')
     parser.add_argument('--auto-mine', action='store_true', help='Enable auto-mining on peers')
     
     args = parser.parse_args()
@@ -64,7 +63,7 @@ def main():
                 sys.executable, "voting_app.py", 
                 peer_host, str(peer_port), 
                 tracker_host, str(tracker_port),
-                "topology.dat", str(args.difficulty), auto_mine_arg
+                "topology.dat", auto_mine_arg
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
