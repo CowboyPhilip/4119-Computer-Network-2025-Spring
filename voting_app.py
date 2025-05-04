@@ -569,11 +569,10 @@ def main():
     tracker_host = sys.argv[3]
     tracker_port = int(sys.argv[4])
     topology_file = sys.argv[5] if len(sys.argv) > 5 else "topology.dat"
-    mining_difficulty = int(sys.argv[6]) if len(sys.argv) > 6 else 4
-    auto_mine = sys.argv[7].lower() == "true" if len(sys.argv) > 7 else False
+    auto_mine = sys.argv[6].lower() == "true" if len(sys.argv) > 6 else False
     
     # Create client
-    client = Client(host, port, tracker_host, tracker_port, topology_file, mining_difficulty, auto_mine)
+    client = Client(host, port, tracker_host, tracker_port, topology_file, auto_mine)
     
     # Create UI
     root = tk.Tk()
