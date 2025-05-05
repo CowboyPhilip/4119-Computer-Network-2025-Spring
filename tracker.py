@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional
 import json
 import sys
-from network import Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, MSG_CHAIN_RESPONSE, MSG_GET_MINER
+from network import Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, MSG_CHAIN_RESPONSE, MSG_GET_MINER, MSG_VOTE_RESULTS
 from block123 import Blockchain
 
 DEFAULT_STAKEVALUE = 0
@@ -37,8 +37,10 @@ class Tracker(Network):
         """
         super().__init__(host, port, topology_file)
         self.assigned_ids = 0
+        self.peers = {}
         self.active_peers = {}  # {peer_id: (host, port, last_heartbeat, stake_value)}
         self.miners = {}
+        self.vote_results = {}
         self.blockchain = Blockchain()  # Reference blockchain
         
         # Start heartbeat check thread
@@ -150,6 +152,12 @@ class Tracker(Network):
                                         temp_chain.chain_score > self.blockchain.chain_score):
                                 self.blockchain = temp_chain
                                 logger.info(f"Updated reference blockchain from peer {peer_id}")
+                                print("\nUpdated reference blockchain from peer " + str(peer_id) + "!")
+
+                    vote_results = self.blockchain.get_vote_results()
+                    has_updated_results = self.merge_vote_results(vote_results)
+                    if has_updated_results:
+                        self._broadcast_vote_results()
                     
                     for miner_id, result in miner_results:
                         # 2nd element = stake_value
@@ -249,6 +257,33 @@ class Tracker(Network):
 
                 self.send_message((host, port), message)
                 logger.info(f"Sent miner id and stake value to {peer_id}")
+
+    def _broadcast_vote_results(self):
+        """Broadcast the vote results to all active peers."""
+        
+        message = {
+            'type': MSG_VOTE_RESULTS,
+            'data': self.vote_results,
+            'timestamp': time.time(),
+            'sender': self.id
+        }
+        
+        # Broadcast to all active peers
+        for peer_id, (host, port, _) in self.active_peers.items():
+            self.send_message((host, port), message)
+
+        logger.info(f"Broadcast voting results to {len(self.active_peers)} peers")
+
+    def merge_vote_results(self, vote_results: Dict[str, any]):
+        results_updated = False
+        for result in vote_results:
+            if result not in self.vote_results:
+                results_updated = True
+            elif self.vote_results[result] != vote_results[result]:
+                results_updated = True
+            self.vote_results[result] = vote_results[result]
+
+        return results_updated
 
 if __name__ == "__main__":
     # Parse command line arguments

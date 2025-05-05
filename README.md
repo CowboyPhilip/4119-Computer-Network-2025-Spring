@@ -62,12 +62,11 @@ This project implements a simplified peer-to-peer blockchain network with a voti
 The easiest way to start the network is using the provided script:
 
 ```
-python start_network.py --peers 3 --difficulty 4 --auto-mine
+python start_network.py --peers 3 --auto-mine
 ```
 
 Options:
 - `--peers`: Number of peer nodes to start (default: 3)
-- `--difficulty`: Mining difficulty (default: 4)
 - `--auto-mine`: Enable automatic mining on peers
 
 ### Running Components Individually
@@ -86,23 +85,23 @@ python tracker.py 127.0.0.1 5000 topology.dat
 #### Start a Client Node with GUI
 
 ```
-python voting_app.py <host> <port> <tracker_host> <tracker_port> [topology_file] [mining_difficulty] [auto_mine]
+python voting_app.py <host> <port> <tracker_host> <tracker_port> [topology_file] [auto_mine]
 ```
 
 Example:
 ```
-python voting_app.py 127.0.0.1 5001 127.0.0.1 5000 topology.dat 4 true
+python voting_app.py 127.0.0.1 5001 127.0.0.1 5000 topology.dat true
 ```
 
 #### Start a Client Node without GUI
 
 ```
-python client.py <host> <port> <tracker_host> <tracker_port> [topology_file] [mining_difficulty] [auto_mine]
+python client.py <host> <port> <tracker_host> <tracker_port> [topology_file] [auto_mine]
 ```
 
 Example:
 ```
-python client.py 127.0.0.1 5001 127.0.0.1 5000 topology.dat 4 true
+python client.py 127.0.0.1 5001 127.0.0.1 5000 topology.dat true
 ```
 
 ### Using the Voting Application
@@ -144,7 +143,9 @@ The blockchain consists of:
 The system uses:
 
 1. **Proof-of-Work**: Miners solve a cryptographic puzzle to add blocks.
-2. **Longest Chain Rule**: In case of forks, the longest valid chain is chosen.
+2. **Proof-of-Stake**: The cryptographic puzzle difficulty scales to miner perform.
+3. **Longest Chain Rule**: In case of forks, the longest valid chain is chosen. Total    
+   stake value determines valid chain in length ties.
 
 ## Implementation Details
 
@@ -192,7 +193,6 @@ This is a simplified implementation for educational purposes:
 Potential enhancements:
 
 - Implement proper cryptographic signing
-- Add dynamic difficulty adjustment
 - Implement sharding for scalability
 - Add more advanced voting mechanisms
 - Improve network resilience

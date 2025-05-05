@@ -9,7 +9,8 @@ import random
 from typing import Dict, Any, List, Tuple, Optional, Callable
 from network import (
     Network, MSG_REGISTER, MSG_PEER_LIST, MSG_GET_MINER, MSG_HEARTBEAT, 
-    MSG_CHAIN_REQUEST, MSG_CHAIN_RESPONSE, MSG_NEW_BLOCK, MSG_NEW_TRANSACTION
+    MSG_CHAIN_REQUEST, MSG_CHAIN_RESPONSE, MSG_NEW_BLOCK, MSG_NEW_TRANSACTION,
+    MSG_VOTE_RESULTS
 )
 from block123 import Blockchain, Block, Transaction
 from crypto_utils import generate_key_pair
@@ -30,7 +31,7 @@ class Client(Network):
     def __init__(self, 
                  host: str, 
                  port: int, 
-                 tracker_host: str, 
+                 tracker_host: str,
                  tracker_port: int,
                  topology_file: str = "topology.dat",
                  auto_mine: bool = False):
@@ -46,7 +47,6 @@ class Client(Network):
             auto_mine: Whether to automatically mine blocks
         """
         super().__init__(host, port, topology_file)
-        self.id = (host, port)
         self.tracker_host = tracker_host
         self.tracker_port = tracker_port
         self.blockchain = Blockchain()
@@ -57,6 +57,7 @@ class Client(Network):
         # Values received from the tracker
         self.miner_id = None
         self.stake_value = None
+        self.vote_results = None
         
         # Generate key pair for this client
         self.private_key, self.public_key = generate_key_pair()
@@ -114,7 +115,7 @@ class Client(Network):
         if success:
             logger.info(f"Registered with tracker at {self.tracker_host}:{self.tracker_port}")
         else:
-            logger.error("Failed to register with tracker")
+            logger.info(f"Failed to register with tracker")
     
     def _send_heartbeats(self) -> None:
         """Send regular heartbeats to the tracker."""
@@ -160,6 +161,8 @@ class Client(Network):
                     self._handle_new_transaction(message)
                 elif msg_type == MSG_GET_MINER:
                     self._handle_get_miner(message)
+                elif msg_type == MSG_VOTE_RESULTS:
+                    self._handle_vote_results(message)
                 else:
                     logger.warning(f"Received unknown message type: {msg_type}")
             
@@ -367,7 +370,7 @@ class Client(Network):
             self.stake_value = None
             self._request_miner()
             # Listen for updated self.miner_id and self.stake_value
-            while not self.miner_id or not self.stake_value:
+            while self.miner_id == None or self.stake_value == None:
                 pass # Can add timeout here possibly
             new_block = self.blockchain.mine_pending_transactions(
                 self.miner_id, self.stake_value)
@@ -416,7 +419,7 @@ class Client(Network):
         """
         # Check if this client has already voted
         if self.blockchain.has_voter_voted(self.public_key):
-            logger.warning("This client has already voted")
+            logger.warning(f"This client has already voted")
             return False
         
         # Create a new transaction
@@ -491,7 +494,7 @@ class Client(Network):
         Returns:
             Dictionary with voting results
         """
-        return self.blockchain.get_vote_results()
+        return self.vote_results
     
     def manually_mine_block(self) -> bool:
         """
@@ -524,6 +527,16 @@ class Client(Network):
         self.send_message((self.tracker_host, self.tracker_port), request)
         logger.info(f"Requested miner id and stake value from {self.tracker_host}:{self.tracker_port}")
 
+    def _handle_vote_results(self, message):
+        if 'data' in message:
+            self.vote_results = message['data']
+
+        logger.info(f"Received voting results from {self.tracker_host}:{self.tracker_port}")
+
+        # Update UI if callback is set
+        if self.ui_callback:
+            self.ui_callback('vote_results_updated', self.vote_results)
+
 if __name__ == "__main__":
     # Parse command line arguments
     if len(sys.argv) < 5:
@@ -535,7 +548,7 @@ if __name__ == "__main__":
     tracker_host = sys.argv[3]
     tracker_port = int(sys.argv[4])
     topology_file = sys.argv[5] if len(sys.argv) > 5 else "topology.dat"
-    auto_mine = sys.argv[7].lower() == "true" if len(sys.argv) > 6 else False
+    auto_mine = sys.argv[6].lower() == "true" if len(sys.argv) > 6 else False
     
     # Create and start client
     client = Client(host, port, tracker_host, tracker_port, topology_file, auto_mine)
@@ -565,7 +578,7 @@ if __name__ == "__main__":
                 result = client.manually_mine_block()
                 print(f"Mining started: {result}")
             elif command[0] == "results":
-                results = client.get_vote_results()
+                results = client.vote_results
                 print("Vote results:")
                 for choice, count in results.items():
                     print(f"  {choice}: {count} votes")

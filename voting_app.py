@@ -252,8 +252,8 @@ class VotingApp:
             messagebox.showinfo("Success", f"Your vote for {option} has been cast")
             self.add_to_transaction_log(f"Vote cast for {option}")
         else:
-            self.status_var.set("Failed to cast vote")
-            messagebox.showerror("Error", "Failed to cast vote. Have you already voted?")
+            self.status_var.set(f"Failed to cast vote")
+            messagebox.showerror("Error", f"Failed to cast vote. Have you already voted?")
     
     def mine_block(self):
         """Manually mine a block."""
@@ -303,19 +303,19 @@ class VotingApp:
             self.add_to_transaction_log(f"Block mined: {data.index}")
             self.update_blockchain_info()
             self.update_blockchain_display()
-            self.update_results_chart()
         elif event_type == 'block_added':
             self.add_to_transaction_log(f"Block received: {data.index}")
             self.update_blockchain_info()
             self.update_blockchain_display()
-            self.update_results_chart()
         elif event_type == 'blockchain_updated':
-            self.add_to_transaction_log("Blockchain updated")
+            self.add_to_transaction_log(f"Blockchain updated")
             self.update_blockchain_info()
             self.update_blockchain_display()
-            self.update_results_chart()
         elif event_type == 'peer_list_updated':
             self.update_peer_list(data)
+        elif event_type == 'vote_results_updated':
+            self.add_to_transaction_log(f"Updated voting results")
+            self.update_results_chart()
     
     def update_blockchain_info(self):
         """Update the blockchain information display."""
@@ -349,8 +349,8 @@ class VotingApp:
     def update_results_chart(self):
         """Update the voting results chart."""
         # Get voting results
-        results = self.client.get_vote_results()
-        
+        results = self.client.vote_results
+
         # Clear the canvas
         self.results_canvas.delete("all")
         

@@ -4,9 +4,13 @@ import os
 import time
 import signal
 import argparse
+import logging
 
 # List to keep track of started processes
 processes = []
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C to gracefully shut down all processes."""
@@ -16,6 +20,7 @@ def signal_handler(sig, frame):
             process.terminate()
         except:
             pass
+    logging.shutdown()
     sys.exit(0)
 
 def main():
