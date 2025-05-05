@@ -9,6 +9,7 @@ from network import Network, MSG_REGISTER, MSG_PEER_LIST, MSG_HEARTBEAT, MSG_CHA
 from block123 import Blockchain
 
 DEFAULT_STAKEVALUE = 0
+PEER_TIMEOUT = 30
 
 # Configure logging
 logging.basicConfig(
@@ -82,6 +83,8 @@ class Tracker(Network):
                     self._handle_heartbeat(message)
                 elif msg_type == MSG_GET_MINER:
                     self._handle_get_miner(message)
+                elif msg_type == MSG_VOTE_RESULTS:
+                    self._handle_vote_results(message)
                 else:
                     logger.warning(f"Received unknown message type: {msg_type}")
             
@@ -150,20 +153,19 @@ class Tracker(Network):
                     if temp_chain_check and len(temp_chain.chain) >= len(self.blockchain.chain):
                         if (len(temp_chain.chain) > len(self.blockchain.chain) or 
                                         temp_chain.chain_score > self.blockchain.chain_score):
-                                self.blockchain = temp_chain
-                                logger.info(f"Updated reference blockchain from peer {peer_id}")
-                                print("\nUpdated reference blockchain from peer " + str(peer_id) + "!")
+                            self.blockchain = temp_chain
+                            logger.info(f"Updated reference blockchain from peer {peer_id}")
+                            # Broadcast vote results if there are new results
+                            vote_results = self.blockchain.get_vote_results()
+                            has_new_votes = self.merge_vote_results(vote_results)
 
-                    vote_results = self.blockchain.get_vote_results()
-                    has_updated_results = self.merge_vote_results(vote_results)
-                    if has_updated_results:
-                        self._broadcast_vote_results()
+                            if has_new_votes:
+                                self._broadcast_vote_results()
                     
+                    # Modify stake values based on chain validation results
                     for miner_id, result in miner_results:
-                        # 2nd element = stake_value
                         stake_value = self.miners[miner_id]
                         if result:
-                            # 3rd element = stake_value
                             stake_value += 1
                         else:
                             stake_value -= 1
@@ -177,7 +179,7 @@ class Tracker(Network):
             
             # Find peers that haven't sent a heartbeat in 30 seconds
             for peer_id, (host, port, last_heartbeat) in self.active_peers.items():
-                if current_time - last_heartbeat > 30:
+                if current_time - last_heartbeat > PEER_TIMEOUT:
                     dead_peers.append(peer_id)
             
             # Remove dead peers
@@ -260,10 +262,11 @@ class Tracker(Network):
 
     def _broadcast_vote_results(self):
         """Broadcast the vote results to all active peers."""
-        
+        tallied_vote_results = self.tally_votes()
+
         message = {
             'type': MSG_VOTE_RESULTS,
-            'data': self.vote_results,
+            'data': tallied_vote_results,
             'timestamp': time.time(),
             'sender': self.id
         }
@@ -274,14 +277,38 @@ class Tracker(Network):
 
         logger.info(f"Broadcast voting results to {len(self.active_peers)} peers")
 
+    def _handle_vote_results(self, message):
+        if 'sender' in message:
+            peer_id = message['sender']
+
+            if peer_id in self.active_peers:
+                host, port, _ = self.active_peers[peer_id]
+
+                tallied_vote_results = self.tally_votes()
+                message = {
+                    'type': MSG_VOTE_RESULTS,
+                    'data': tallied_vote_results,
+                    'timestamp': time.time(),
+                    'sender': self.id
+                }
+
+                self.send_message((host, port), message)
+                logger.info(f"Sent vote results to {peer_id}")
+
+    def tally_votes(self):
+        results = {}
+        for vote in self.vote_results:
+            choice = self.vote_results[vote]
+            results[choice] = results.get(choice, 0) + 1
+        
+        return results
+
     def merge_vote_results(self, vote_results: Dict[str, any]):
         results_updated = False
-        for result in vote_results:
-            if result not in self.vote_results:
+        for peer_id in vote_results:
+            if peer_id not in self.vote_results:
                 results_updated = True
-            elif self.vote_results[result] != vote_results[result]:
-                results_updated = True
-            self.vote_results[result] = vote_results[result]
+                self.vote_results[peer_id] = vote_results[peer_id]
 
         return results_updated
 

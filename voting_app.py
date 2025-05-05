@@ -244,7 +244,8 @@ class VotingApp:
             return
         
         # Create vote transaction
-        vote_data = {'choice': option}
+        vote_data = {'peer_id': self.client.id,
+                     'choice': option}
         success = self.client.create_transaction(vote_data)
         
         if success:
@@ -277,6 +278,7 @@ class VotingApp:
     
     def refresh_results(self):
         """Refresh the voting results."""
+        self.client.update_vote_results()
         self.update_results_chart()
     
     def add_to_transaction_log(self, message):
@@ -348,14 +350,14 @@ class VotingApp:
     
     def update_results_chart(self):
         """Update the voting results chart."""
-        # Get voting results
-        results = self.client.vote_results
+        # Get voting results if not supplied already
+        results = self.client.tallied_vote_results
 
         # Clear the canvas
         self.results_canvas.delete("all")
         
         # If no votes, show a message
-        if not results:
+        if len(results) == 0:
             self.results_canvas.create_text(
                 self.results_canvas.winfo_width() // 2,
                 self.results_canvas.winfo_height() // 2,
@@ -363,7 +365,7 @@ class VotingApp:
                 font=("Arial", 14)
             )
             return
-        
+
         # Calculate total votes
         total_votes = sum(results.values())
         
@@ -384,7 +386,8 @@ class VotingApp:
         x = 50
         max_value = max(results.values())
         
-        for option, votes in results.items():
+        for choice in results:
+            votes = results[choice]
             # Calculate bar height
             if max_value > 0:
                 bar_height = (votes / max_value) * (chart_height - 50)
@@ -401,7 +404,7 @@ class VotingApp:
             # Draw the option label
             self.results_canvas.create_text(
                 x + bar_width // 2, chart_height + 10,
-                text=option,
+                text=choice,
                 anchor=tk.N
             )
             

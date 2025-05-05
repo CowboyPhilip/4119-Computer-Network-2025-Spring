@@ -57,7 +57,7 @@ class Client(Network):
         # Values received from the tracker
         self.miner_id = None
         self.stake_value = None
-        self.vote_results = None
+        self.tallied_vote_results = {}
         
         # Generate key pair for this client
         self.private_key, self.public_key = generate_key_pair()
@@ -232,13 +232,15 @@ class Client(Network):
             
             # If the received chain is longer and valid, update our chain
             temp_chain_check, _ = temp_chain.is_chain_valid()
-            if temp_chain.chain_score > self.blockchain.chain_score and temp_chain_check:
-                self.blockchain = temp_chain
-                logger.info(f"Updated blockchain from {message.get('sender', 'unknown')}")
+            if temp_chain_check and len(temp_chain.chain) >= len(self.blockchain.chain):
+                if (len(temp_chain.chain) > len(self.blockchain.chain) or 
+                                temp_chain.chain_score > self.blockchain.chain_score):
+                    self.blockchain = temp_chain
+                    logger.info(f"Updated blockchain from {message.get('sender', 'unknown')}")
                 
-                # Update UI if callback is set
-                if self.ui_callback:
-                    self.ui_callback('blockchain_updated', self.blockchain)
+                    # Update UI if callback is set
+                    if self.ui_callback:
+                        self.ui_callback('blockchain_updated', self.blockchain)
     
     def _handle_new_block(self, message: Dict[str, Any]) -> None:
         """
@@ -487,14 +489,18 @@ class Client(Network):
         
         return info
     
-    def get_vote_results(self) -> Dict[str, int]:
+    def update_vote_results(self):
         """
-        Get the current vote results.
+        Sync current vote results with the tracker
         
         Returns:
             Dictionary with voting results
         """
-        return self.vote_results
+        self.tallied_vote_results = None
+        self._request_vote_results()
+        while self.tallied_vote_results == None:
+            pass # Possibly add timer
+        # self.tallied_vote_results updated
     
     def manually_mine_block(self) -> bool:
         """
@@ -529,13 +535,37 @@ class Client(Network):
 
     def _handle_vote_results(self, message):
         if 'data' in message:
-            self.vote_results = message['data']
+            tallied_vote_results = message['data']
 
         logger.info(f"Received voting results from {self.tracker_host}:{self.tracker_port}")
 
-        # Update UI if callback is set
-        if self.ui_callback:
-            self.ui_callback('vote_results_updated', self.vote_results)
+        if self.tallied_vote_results != None and self.ui_callback:
+            self.tallied_vote_results = tallied_vote_results
+            self.ui_callback('vote_results_updated', tallied_vote_results)
+        else:
+            self.tallied_vote_results = tallied_vote_results
+
+    def _request_vote_results(self):
+        request = {
+            'type': MSG_VOTE_RESULTS,
+            'data': None,
+            'timestamp': time.time(),
+            'sender': self.id
+        }
+
+        self.send_message((self.tracker_host, self.tracker_port), request)
+        logger.info(f"Requested voting results from {self.tracker_host}:{self.tracker_port}")
+
+    def check_new_vote_results(self, tallied_vote_results):
+        if len(tallied_vote_results) == 0:
+            return False
+        for result in tallied_vote_results:
+            if result not in self.tallied_vote_results:
+                return True
+            if self.tallied_vote_results[result] != tallied_vote_results[result]:
+                return True
+            
+        return False
 
 if __name__ == "__main__":
     # Parse command line arguments

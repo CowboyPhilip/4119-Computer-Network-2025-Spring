@@ -314,7 +314,7 @@ class Blockchain:
         
         return new_block
     
-    def is_chain_valid(self) -> bool:
+    def is_chain_valid(self) -> tuple[bool, Dict[int, bool]]:
         # CURRENTLY USED BY tracker.py
         """
         Validate the entire blockchain.
@@ -416,7 +416,7 @@ class Blockchain:
         
         return False, miner_checks_list
     
-    def validate_chain(self, chain: List[Block]) -> bool:
+    def validate_chain(self, chain: List[Block]) -> tuple[bool, Dict[int, bool]]:
         """
         Validate a chain from another node.
         
@@ -493,8 +493,9 @@ class Blockchain:
         for block in self.chain:
             for tx in block.transactions:
                 # Assuming vote_data has a 'choice' field
+                peer_id = tx.vote_data.get('peer_id')
                 choice = tx.vote_data.get('choice')
                 if choice:
-                    results[choice] = results.get(choice, 0) + 1
+                    results[peer_id] = choice
         
         return results
