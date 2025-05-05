@@ -1,5 +1,9 @@
 * {background-color: #2738a3}
 
+body {
+    margin-bottom: 40px;
+}
+
 h1 {
     font-size: 64px;
     margin-top: 40px;
@@ -11,18 +15,11 @@ h1 {
 
 h2 {
     font-size: 24px;
-    margin-top: 40px;
+    margin-top: 20px;
     text-align: left;
     letter-spacing: 0.05em;
     font-family: Arial Black, Helvetica, sans-serif;
     color: #ba7718;
-}
-
-.content_box {
-    display: flex;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
 }
 
 .menu_header {
@@ -49,9 +46,17 @@ h2 {
     color: #ccd0e8;
 }
 
+.error_box {
+    font-size: 18px;
+    padding-top: 20px;
+    text-align: left;
+    letter-spacing: 0.05em;
+    font-family: Arial, Helvetica, sans-serif;
+    color: red;
+}
+
 .main {
     font-size: 18px;
-    margin-top: 40px;
     text-align: left;
     letter-spacing: 0.05em;
     font-family: Arial, Helvetica, sans-serif;
@@ -65,6 +70,10 @@ h2 {
     letter-spacing: 0.05em;
     background-color: #ccd0e8;
 }
+
+dt, dd {
+    background-color: #ccd0e8;
+  }
 
 .dropdown {
     background-color: #8b8f94;
@@ -86,4 +95,42 @@ h2 {
     text-align: center;
     letter-spacing: 0.05em;
     color: #000000;
+}
+
+.icon {
+    background-color: #000000;
+    max-width: 1.8em;
+    max-height: 1.8em;
+    padding: 0;
+    vertical-align: top;
+    margin: auto;
+}
+
+table {
+    width: 100%;
+}
+
+th {
+    background-color: #000000;
+    font-size: 18px;
+    font-family: Arial Black, Helvetica, sans-serif;
+    text-align: center;
+    color: #ffffff;
+}
+
+td {
+    background-color: #000000;
+    font-size: 18px;
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    color: #ffffff;
+}
+
+table.fixed { 
+    table-layout: fixed; 
+}
+
+table.fixed td {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

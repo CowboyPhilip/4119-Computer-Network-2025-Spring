@@ -3,14 +3,22 @@
         Decentralized Voting System
     </h1>
 </header>
-<div class="menu_header">
-        
-</div>
-<p></p>
-<div class="main" id="main">
-        
-</div>
-<script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
-<script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
-<script type="text/javascript" src="{{ url_for('static', filename = 'script.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+<body>
+    <script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename = 'script.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <div class="menu_header">
+        <button class="menu_button" id="vote_menu">Vote</button>
+        <button class="menu_button" id="blockchain_menu">Blockchain</button>
+        <button class="menu_button" id="results_menu">Results</button>
+        <button class="menu_button" id="network_menu">Network</button>
+    </div>
+    <p></p>
+    <div class="error_box" id="error_box">
+
+    </div>
+    <div class="main" id="main">
+            
+    </div>
+</body>

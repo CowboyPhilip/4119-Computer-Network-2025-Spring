@@ -1,3 +1,50 @@
-<div class="main">
+<h2>
+    Blockchain Information
+</h2>
+<div class="box_border">
+    <dt>Chain Length: </dt>
+    <dd id="chain_length"></dd>
+    <br>
+    <dt>Last Block: </dt>
+    <dd id="last_block"></dd>
+    <br>
+    <dt>Pending Transactions: </dt>
+    <dd id="pending_transactions"></dd>
+    <br>
+    <dt>Mining: </dt>
+    <dd id="mining"></dd>
+</div>
+<h2>
     Blockchain
+</h2>
+<div class="box_border" style="background-color: #000000; color: #ffffff; ">
+    <table class=fixed id="blockchain_table">
+        <tbody id="blockchain_tbody">
+            <tr>
+                <th style="width: 10%;">Index</th>
+                <th style="width: 16%;">Hash</th>
+                <th style="width: 16%;">Prev Hash</th>
+                <th style="width: 16%;">Nonce</th>
+                <th style="width: 16%;">Merkle Root</th>
+                <th style="width: 16%;">Time</th>
+                <th style="width: 10%;">Trans-actions</th>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<h2 id="transactions_table_header">
+    Transactions for Block: <span id="block_no" style="color: red;">0</span>
+</h2>
+<div class="box_border" style="background-color: #000000; color: #ffffff; ">
+    <table class=fixed id="transactions_table">
+        <tr>
+            <th style="width: 25%;">Transaction ID</th>
+            <th style="width: 25%;">Voter ID</th>
+            <th style="width: 25%;">Vote</th>
+            <th style="width: 25%;">Time</th>
+        </tr>
+        <tbody id="transactions_tbody">
+
+        </tbody>
+    </table>
 </div>
