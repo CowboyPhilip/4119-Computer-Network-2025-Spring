@@ -134,3 +134,11 @@ table.fixed td {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+#bar_chart {
+    background-color: #ccd0e8;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+}

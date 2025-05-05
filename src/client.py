@@ -55,6 +55,7 @@ class Client(Network):
         self.mining = False
         self.mining_thread = None
         self.heartbeat_thread = None
+        self.peers = {}
         
         # Generate key pair for this client
         self.private_key, self.public_key = generate_key_pair()
@@ -494,6 +495,9 @@ class Client(Network):
             return True
         
         return False
+    
+    def get_peers(self):
+        return self.peers
 
 
 if __name__ == "__main__":

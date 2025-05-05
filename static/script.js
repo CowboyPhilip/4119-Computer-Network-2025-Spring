@@ -1,4 +1,9 @@
+Chart.defaults.font.size = 12;
+Chart.defaults.font.weight = "bold";
+//Chart.defaults.font.family = ;
+Chart.defaults.color = "#000";
 var pageCache = {}
+var resultsDict = {}
 
 function display_menu() {
     
@@ -17,7 +22,36 @@ function display_menu() {
 
 }
 
+function load_vote() {
+
+    $.ajax({
+        type: "GET",
+        url: "/vote/transaction_log",
+        dataType: "json",
+        success: function(response) {
+            if (response.transaction_log) {
+                $("#transaction_box").replaceWith(response.transaction_log);
+            }
+            pageCache["/vote"] = $("#main").html();
+            vote_interaction();
+        }
+    });
+
+}
+
 function vote_interaction() {
+    
+    $.ajax({
+        type: "GET",
+        url: "/vote/transaction_log",
+        dataType: "json",
+        success: function(response) {
+            if (response.transaction_log) {
+                $("#transaction_box").replaceWith(response.transaction_log);
+            }
+            pageCache["/vote"] = $("#main").html();
+        }
+    });
     
     $("#cast_vote").click(function() {
         $(".error_box").empty();
@@ -30,8 +64,9 @@ function vote_interaction() {
             dataType: "json",
             success: function(response) {
                 if (response.transaction_log) {
-                    $("#transaction_box").append(response.transaction_log);
+                    $("#transaction_box").replaceWith(response.transaction_log);
                     delete pageCache["/blockchain"];
+                    delete pageCache["/results"];
                 } else {
                     display_info("Error", response.error);
                 }
@@ -172,9 +207,100 @@ function blockchain_interaction() {
 
 }
 
-function results_interaction() {
-    $("#vote_img").css("height", 9/16 * $("#vote_img").width());
-    pageCache["/results"] = $("#main").html();
+function load_results() {
+    
+    $.ajax({
+        type: "GET",
+        url: "/results/info",
+        dataType: "json",
+        success: function(response) {
+            resultsDict = response;
+            draw_results();
+        }
+    });
+
+}
+
+function draw_results() {
+    var ctx = $("#bar_chart")[0].getContext("2d");
+    const barChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: Object.keys(resultsDict),
+            datasets: [{
+                backgroundColor: "#349eeb",
+                label: "Votes",
+                data: Object.values(resultsDict)
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function load_network() {
+
+    $.ajax({
+        type: "GET",
+        url: "/network/info",
+        dataType: "json",
+        success: function(response) {
+            $("#client_id").text(response.client_id);
+            $("#tracker").text(response.tracker);
+            $("#peers").text(response.peers);
+            $.ajax({
+                type: "GET",
+                url: "/network/peers",
+                dataType: "json",
+                success: function(response) {
+                    console.log(response);
+                    $("#peers_tbody").empty();
+                    for (var key in response) {
+                        var newRow = `
+                            <tr>
+                                <td>` + key + `</td>
+                                <td>` + response[key][0] + `</td>
+                                <td>` + response[key][1] + `</td>
+                            </tr>
+                        `;
+                        $("#peers_tbody").append(newRow);
+                    }
+                    pageCache["/network"] = $("#main").html();
+                }
+            });
+        }
+    });
+
+    /*
+    $.ajax({
+        type: "GET",
+        url: "/network/peers",
+        dataType: "json",
+        success: function(response) {
+            console.log("peers: " + response);
+            $("#peers_tbody").empty();
+            for (var key in response) {
+                var newRow = `
+                    <tr>
+                        <td>` + key + `</td>
+                        <td>` + response[key][0] + `</td>
+                        <td>` + response[key][1] + `</td>
+                    </tr>
+                `;
+                $("#peers_tbody").append(newRow);
+            }
+            pageCache["/network"] = $("#main").html();
+        }
+    });
+    */
+
 }
 
 function display_info(info, error) {
@@ -193,7 +319,11 @@ function load_page_interaction(page, html, cached) {
     if (page == "/vote") {
         $("#main").html(html);
         main_alignment();
-        vote_interaction();
+        if (!cached) {
+            load_vote();
+        } else {
+            vote_interaction();
+        }
     } else if (page == "/blockchain") {
         if (cached) {
             $("#main").html(html);
@@ -205,10 +335,17 @@ function load_page_interaction(page, html, cached) {
     } else if (page == "/results") {
         $("#main").html(html);
         main_alignment();
-        results_interaction();
+        $("#vote_img").css("height", 9/16 * $("#vote_img").width());
+        $("#refresh").click(function() {
+            delete pageCache["/result"];
+            switch_page("/results");
+        });
+        pageCache["/results"] = html;
+        load_results();
     } else {
         $("#main").html(html);
         main_alignment();
+        load_network();
     }
 }
 

@@ -7,6 +7,7 @@ from client import Client
 
 app = flask.Flask(__name__, static_folder='../static', template_folder='../templates')
 client = None
+transaction_log = ""
 
 @app.route('/')
 def home():
@@ -16,14 +17,19 @@ def home():
 def vote():
     return flask.render_template('vote.html')
 
+@app.route('/vote/transaction_log')
+def vote_transaction_log():
+    return flask.jsonify({"transaction_log": transaction_log})
+
 @app.route('/vote/cast_vote', methods=['POST'])
 def cast_vote():
     requestData = flask.request.get_json()
     success = client.create_transaction({'choice': requestData["candidate"]})
     responseData = {}
     if success:
-        responseData["transaction_log"] = ("Vote cast for " + 
-                                            requestData["candidate"] + "\n")
+        msg = "Vote cast for " + requestData["candidate"] + "\n"
+        add_to_transaction_log(msg)
+        responseData["transaction_log"] = transaction_log
     else:
          responseData["error"] = ("Failed to cast vote. " + 
                                   "Have you already voted?")
@@ -99,9 +105,32 @@ def blockchain_transactions():
 def results():
     return flask.render_template('results.html')
 
+@app.route('/results/info')
+def results_info():
+    return flask.jsonify(client.get_vote_results())
+
 @app.route('/network')
 def network():
     return flask.render_template('network.html')
+
+@app.route('/network/info')
+def network_info():
+    responseDict = {}
+    responseDict["client_id"] = client.id
+    responseDict["tracker"] = f"{client.tracker_host}:{client.tracker_port}"
+    responseDict["peers"] = len(client.get_peers())
+    print(responseDict)
+    return flask.jsonify(responseDict)
+
+@app.route('/network/peers')
+def network_peers():
+    print("peers: " + str(client.get_peers()))
+    return flask.jsonify(client.get_peers())
+
+def add_to_transaction_log(message):
+    """Add a message to the transaction log."""
+    global transaction_log
+    transaction_log += f"[{time.strftime('%H:%M:%S')}] {message}\n"
 
 if __name__ == '__main__':
     
@@ -124,4 +153,4 @@ if __name__ == '__main__':
     client_thread.daemon = True
     client_thread.start()
 
-    app.run(debug=True, port=5004)
+    app.run(debug=True, port=port+100)

@@ -440,6 +440,8 @@ class VotingApp:
         # Add peers to the treeview
         for peer_id, (host, port) in peers.items():
             self.peer_tree.insert("", tk.END, values=(peer_id, host, port))
+
+        # print(self.client.get_peers())
     
     def show_block_details(self, event):
         """
