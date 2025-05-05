@@ -116,6 +116,7 @@ class Block:
         self.nonce = nonce
         self.miner_id = miner_id
         self.stake_value = stake_value
+        self.mining_difficulty = DEFAULT_DIFFICULTY
         self.merkle_root = self.calculate_merkle_root()
         self.hash = hash if hash else self.compute_hash()
     
@@ -152,8 +153,9 @@ class Block:
             'timestamp': self.timestamp,
             'nonce': self.nonce,
             'merkle_root': self.merkle_root,
-            'miner_id' : self.miner_id,
-            'stake_value' : self.stake_value
+            'miner_id': self.miner_id,
+            'stake_value': self.stake_value,
+            'mining_difficulty': self.mining_difficulty
         }
     
     def compute_hash(self) -> str:
@@ -165,8 +167,8 @@ class Block:
         """
         Perform proof-of-work to find a valid hash.
         """
-        mining_difficulty = Block.get_mining_difficulty(self.stake_value)
-        target = '0' * mining_difficulty
+        self.mining_difficulty = Block.get_mining_difficulty(self.stake_value)
+        target = '0' * self.mining_difficulty
         
         while not self.hash.startswith(target):
             self.nonce += 1
@@ -284,7 +286,7 @@ class Blockchain:
         Mine a new block with all pending transactions.
         
         Args:
-            miner_id: ID of the miner
+            miner_id: ID of the miner, stake_value: the stake value of the miner
             
         Returns:
             The newly mined block, or None if no transactions to mine

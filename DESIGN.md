@@ -53,8 +53,11 @@ Each block in the blockchain has the following structure:
 - **Timestamp**: Time when the block was created
 - **Previous Block Hash**: Hash of the previous block for chain integrity
 - **Merkle Root**: Root of the Merkle tree of transactions
-- **Nonce**: Value used for proof-of-work mining
+- **Nonce**: Value used for Proof-of-Work mining
 - **Transactions**: List of vote transactions in the block
+- **Miner ID**: Id of the miner working on the block
+- **Stake Value**: Stake value of the miner working on the block, used for 
+                     Proof-of-Stake mining
 
 ### 2.2 Transaction Structure
 
@@ -79,12 +82,16 @@ Each block in the blockchain has the following structure:
 
 The system uses two primary mechanisms for consensus:
 
-1. **Proof-of-Work (PoW)**: 
-   - Miners must find a nonce value that results in a block hash with a specified number of leading zeros.
-   - The difficulty can be adjusted to control the rate of block creation.
+1. **Proof-of-Stake (PoS)**: 
+   - Miners must find a nonce value that results in a block hash with a specified 
+      number of leading zeros, refered to as the 'mining difficulty' of the block.
+   - The mining difficulty of any given block is determined by the stake value of the 
+      miner working on the block. Stake values for miners are stored and updated by the tracker when resolving the canonical chain.
 
-2. **Longest Chain Rule**:
+2. **Longest Chain by Total Stake Rule**:
    - In case of forks, nodes follow the longest valid chain.
+   - In case of a tie between two or more valid chains of equal length, the chain with 
+      the highest total stake value (sum of all stake values in a chain's blocks) will be selected.
    - This ensures that the network converges to a single canonical chain.
 
 ### 2.4 Fork Resolution
@@ -92,7 +99,7 @@ The system uses two primary mechanisms for consensus:
 When a fork occurs (two blocks are mined at a similar time):
 1. Each node receives both blocks and maintains awareness of both chains.
 2. Nodes continue adding to the chain they received first.
-3. The longest chain rule determines the canonical chain.
+3. The longest chain by total stake rule determines the canonical chain.
 4. When a chain becomes longer, nodes switch to that chain.
 
 ## 3. P2P Network Protocol
@@ -153,6 +160,10 @@ All messages in the network follow this JSON format:
    - Sent periodically by peers to the tracker
    - Indicates the peer is still active
    - Contains the current blockchain state
+
+8. **GET_MINER**:
+   - Sent by a peer to the tracker
+   - Used to access a peer's miner id and stake value tied to mining a block
 
 ### 3.4 Network Topology
 
@@ -223,7 +234,8 @@ The UI has four main tabs:
 
 - Each block contains the hash of the previous block.
 - Changing a block would invalidate all subsequent blocks.
-- Proof-of-work makes it computationally expensive to alter the blockchain.
+- Proof-of-Work makes it computationally expensive to alter the blockchain.
+- Proof-of-Stake adds a security measure to punish potentially malicious peers. 
 
 ## 6. Implementation Notes
 
@@ -265,7 +277,6 @@ Potential improvements include:
    - Allow for more complex voting mechanisms
 
 3. **Enhanced Security**:
-   - Implement Delegated Proof-of-Stake or other consensus mechanisms
    - Add more robust network security features
 
 4. **Scalability Improvements**:
