@@ -81,6 +81,16 @@ Example:
 ```
 python tracker.py 127.0.0.1 5000 topology.dat
 ```
+#### Start a Client Node with web GUI
+
+```
+python src/web_voting_app.py <host> <port> <tracker_host> <tracker_port> [topology_web_file] [auto_mine]
+```
+
+Example:
+```
+python src/web_voting_app.py 127.0.0.1 5001 127.0.0.1 5000 topology_web.dat true
+```
 
 #### Start a Client Node with GUI
 
@@ -166,7 +176,7 @@ The system uses:
 
 ### Voting Application
 
-- Provides a GUI for user interaction
+- Provides two GUI's (windowed and web) for user interaction
 - Displays blockchain state and voting results
 - Allows users to cast votes
 - Shows network status
@@ -201,7 +211,3 @@ Potential enhancements:
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
