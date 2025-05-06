@@ -165,6 +165,10 @@ All messages in the network follow this JSON format:
    - Sent by a peer to the tracker
    - Used to access a peer's miner id and stake value tied to mining a block
 
+9. **GET_VOTE_RESULTS**:
+   - Sent by peer to the tracker or the tracker to the peer
+   - Used to request or broadcast tracker's voting results
+
 ### 3.4 Network Topology
 
 The network topology is defined in a configuration file (`topology.dat`):
@@ -197,7 +201,7 @@ The voting application provides:
 
 ### 4.2 User Interface
 
-The UI has four main tabs:
+The UI's (both windowed and web) has four main tabs:
 
 1. **Vote Tab**:
    - Vote casting controls
@@ -256,12 +260,10 @@ For educational purposes, the current implementation uses:
 
 The current implementation has limitations:
 - All nodes store the complete blockchain.
-- Mining difficulty is fixed.
 - No optimization for large-scale voting.
 
 A production system would need:
 - Sharding for scalability
-- Dynamic difficulty adjustment
 - Optimized storage and verification
 
 ## 7. Future Enhancements
